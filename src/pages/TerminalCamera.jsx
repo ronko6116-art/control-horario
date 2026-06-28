@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   CheckCircle, XCircle, Loader, RefreshCw, Clock, User,
@@ -32,29 +32,43 @@ export default function TerminalCamera() {
   const [successData, setSuccessData] = useState(null)
   const [countdown, setCountdown] = useState(null)
 
-  const stopCamera = useCallback(() => {
+  function stopCamera() {
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(t => t.stop())
       streamRef.current = null
     }
-  }, [])
+  }
 
-  const doCapture = useCallback(() => {
+  function doCapture() {
     const video = videoRef.current
     const canvas = canvasRef.current
     if (!video || !canvas || !mountedRef.current) return
 
     if (video.videoWidth === 0 || video.videoHeight === 0) {
-      if (retryCountRef.current < 10) {
+      if (retryCountRef.current < 30) {
         retryCountRef.current++
-        setTimeout(() => doCapture(), 200)
+        requestAnimationFrame(doCapture)
       }
       return
     }
 
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
-    canvas.getContext('2d').drawImage(video, 0, 0)
+    const ctx = canvas.getContext('2d')
+    ctx.drawImage(video, 0, 0)
+
+    try {
+      const pixel = ctx.getImageData(0, 0, 1, 1).data
+      if (pixel[0] === 0 && pixel[1] === 0 && pixel[2] === 0) {
+        if (retryCountRef.current < 30) {
+          retryCountRef.current++
+          requestAnimationFrame(doCapture)
+          return
+        }
+      }
+    } catch {
+      // canvas not readable, proceed anyway
+    }
 
     canvas.toBlob((blob) => {
       if (!mountedRef.current) return
@@ -63,9 +77,9 @@ export default function TerminalCamera() {
       setStep('captured')
       stopCamera()
     }, 'image/jpeg', 0.5)
-  }, [stopCamera])
+  }
 
-  const startAutoCapture = useCallback(() => {
+  function startAutoCapture() {
     retryCountRef.current = 0
     let count = 3
     setCountdown(count)
@@ -78,7 +92,7 @@ export default function TerminalCamera() {
         doCapture()
       }
     }, 1000)
-  }, [doCapture])
+  }
 
   useEffect(() => {
     mountedRef.current = true
@@ -118,7 +132,8 @@ export default function TerminalCamera() {
       mountedRef.current = false
       stopCamera()
     }
-  }, [employee, navigate, stopCamera, startAutoCapture])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employee, navigate])
 
   async function confirmAndSave() {
     setStep('uploading')
