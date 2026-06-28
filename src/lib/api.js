@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 import jsPDF from 'jspdf'
-import 'jspdf-autotable'
+import { applyPlugin } from 'jspdf-autotable'
+applyPlugin(jsPDF)
 
 /* ============================================
    TERMINAL (Quiosco)
