@@ -118,7 +118,17 @@ export default function TerminalCamera() {
         const videoEl = videoRef.current
         if (videoEl) {
           videoEl.srcObject = stream
-          await videoEl.play()
+          const timeout = setTimeout(() => {
+            videoEl.play()
+          }, 3000)
+          await new Promise((resolve) => {
+            videoEl.onloadedmetadata = () => {
+              clearTimeout(timeout)
+              videoEl.play()
+              resolve()
+            }
+            videoEl.onerror = () => { clearTimeout(timeout); resolve() }
+          })
         }
         setStep('preview')
         startAutoCapture()
@@ -173,7 +183,6 @@ export default function TerminalCamera() {
           <div className="flex-1 relative flex items-center justify-center bg-black">
             <video
               ref={videoRef}
-              autoPlay
               playsInline
               muted
               className="w-full h-full object-cover max-h-[70vh]"
