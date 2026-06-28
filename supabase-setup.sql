@@ -46,6 +46,10 @@ CREATE POLICY "Lectura pública de fotos" ON storage.objects
 -- ============================================
 
 -- 6. Crear empleado (auth.user + perfil)
+-- Limpiar overloads previos con varchar/text
+DROP FUNCTION IF EXISTS crear_empleado(TEXT, TEXT, TEXT, VARCHAR, VARCHAR);
+DROP FUNCTION IF EXISTS crear_empleado(TEXT, TEXT, TEXT, TEXT, TEXT);
+
 CREATE OR REPLACE FUNCTION crear_empleado(
   p_email TEXT,
   p_password TEXT,
