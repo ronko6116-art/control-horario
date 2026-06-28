@@ -283,43 +283,45 @@ export function generateDailyReportPDF(records, dateLabel) {
   doc.text('Empresa: [Nombre de la Empresa]', 14, 37)
   doc.text('CIF: [CIF de la Empresa]', 14, 43)
 
-  const empleadosMap = {}
+  // Group by employee, then by day
+  const empMap = {}
   for (const r of records) {
     const name = r.perfiles?.nombre_completo || 'Desconocido'
     const dni = r.perfiles?.dni_nie || ''
-    if (!empleadosMap[name]) {
-      empleadosMap[name] = { dni, nombre: name, eventos: [], fechas: [] }
-    }
-    empleadosMap[name].eventos.push({
-      hora: new Date(r.creado_en).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
-      tipo: r.tipo,
+    if (!empMap[name]) empMap[name] = { dni, nombre: name, dias: {} }
+    const dia = new Date(r.creado_en).toLocaleDateString('es-ES')
+    if (!empMap[name].dias[dia]) empMap[name].dias[dia] = {}
+    empMap[name].dias[dia][r.tipo] = new Date(r.creado_en).toLocaleTimeString('es-ES', {
+      hour: '2-digit', minute: '2-digit',
     })
-    const fechaStr = new Date(r.creado_en).toLocaleDateString('es-ES')
-    if (!empleadosMap[name].fechas.includes(fechaStr)) {
-      empleadosMap[name].fechas.push(fechaStr)
-    }
   }
 
-  const body = Object.values(empleadosMap).map(emp => {
-    const entradas = emp.eventos.filter(e => e.tipo === 'entrada').length
-    const salidas = emp.eventos.filter(e => e.tipo === 'salida').length
-    const descansos = emp.eventos.filter(e => e.tipo === 'descanso').length
-    return [
-      emp.nombre,
-      emp.dni,
-      emp.fechas.length.toString(),
-      entradas.toString(),
-      descansos.toString(),
-      salidas.toString(),
-    ]
-  })
+  const body = []
+  for (const emp of Object.values(empMap)) {
+    const entries = Object.entries(emp.dias)
+    entries.forEach(([fecha, tipos], idx) => {
+      body.push([
+        idx === 0 ? emp.nombre : '',
+        idx === 0 ? emp.dni : '',
+        fecha,
+        tipos.entrada || '-',
+        tipos.descanso || '-',
+        tipos.salida || '-',
+      ])
+    })
+  }
 
   doc.autoTable({
-    head: [['Empleado', 'DNI/NIE', 'Días', 'Entradas', 'Descansos', 'Salidas']],
+    head: [['Empleado', 'DNI/NIE', 'Fecha', 'Entrada', 'Descanso', 'Salida']],
     body,
     startY: 50,
     styles: { fontSize: 9 },
     headStyles: { fillColor: [37, 99, 235] },
+    columnStyles: {
+      0: { cellWidth: 40 },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 30 },
+    },
   })
 
   const finalY = doc.lastAutoTable.finalY || 50
