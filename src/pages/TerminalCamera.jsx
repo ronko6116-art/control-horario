@@ -22,7 +22,6 @@ export default function TerminalCamera() {
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
   const mountedRef = useRef(true)
-  const retryCountRef = useRef(0)
 
   const [step, setStep] = useState('starting')
   const [tipo, setTipo] = useState('entrada')
@@ -39,48 +38,56 @@ export default function TerminalCamera() {
     }
   }
 
-  function doCapture() {
-    const video = videoRef.current
+  async function captureFromStream() {
+    const stream = streamRef.current
     const canvas = canvasRef.current
-    if (!video || !canvas || !mountedRef.current) return
+    if (!stream || !canvas || !mountedRef.current) return
 
-    if (video.videoWidth === 0 || video.videoHeight === 0) {
-      if (retryCountRef.current < 30) {
-        retryCountRef.current++
-        requestAnimationFrame(doCapture)
-      }
-      return
-    }
-
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    const ctx = canvas.getContext('2d')
-    ctx.drawImage(video, 0, 0)
+    const track = stream.getVideoTracks()[0]
+    if (!track) return
 
     try {
-      const pixel = ctx.getImageData(0, 0, 1, 1).data
-      if (pixel[0] === 0 && pixel[1] === 0 && pixel[2] === 0) {
-        if (retryCountRef.current < 30) {
-          retryCountRef.current++
-          requestAnimationFrame(doCapture)
-          return
-        }
+      if ('ImageCapture' in window) {
+        const imageCapture = new ImageCapture(track)
+        const bitmap = await imageCapture.grabFrame()
+        if (!mountedRef.current) return
+        canvas.width = bitmap.width
+        canvas.height = bitmap.height
+        canvas.getContext('2d').drawImage(bitmap, 0, 0)
+        bitmap.close()
+      } else {
+        const video = videoRef.current
+        if (!video) return
+        canvas.width = video.videoWidth || 640
+        canvas.height = video.videoHeight || 480
+        canvas.getContext('2d').drawImage(video, 0, 0)
       }
-    } catch {
-      // canvas not readable, proceed anyway
-    }
 
-    canvas.toBlob((blob) => {
-      if (!mountedRef.current) return
-      setCapturedBlob(blob)
-      setCapturedUrl(canvas.toDataURL('image/jpeg', 0.5))
-      setStep('captured')
-      stopCamera()
-    }, 'image/jpeg', 0.5)
+      canvas.toBlob((blob) => {
+        if (!mountedRef.current) return
+        setCapturedBlob(blob)
+        setCapturedUrl(canvas.toDataURL('image/jpeg', 0.5))
+        setStep('captured')
+        stopCamera()
+      }, 'image/jpeg', 0.5)
+    } catch (_) {
+      const video = videoRef.current
+      if (video && video.videoWidth > 0) {
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        canvas.getContext('2d').drawImage(video, 0, 0)
+        canvas.toBlob((blob) => {
+          if (!mountedRef.current) return
+          setCapturedBlob(blob)
+          setCapturedUrl(canvas.toDataURL('image/jpeg', 0.5))
+          setStep('captured')
+          stopCamera()
+        }, 'image/jpeg', 0.5)
+      }
+    }
   }
 
   function startAutoCapture() {
-    retryCountRef.current = 0
     let count = 3
     setCountdown(count)
     const interval = setInterval(() => {
@@ -89,7 +96,7 @@ export default function TerminalCamera() {
       setCountdown(count)
       if (count <= 0) {
         clearInterval(interval)
-        doCapture()
+        captureFromStream()
       }
     }, 1000)
   }
@@ -118,17 +125,7 @@ export default function TerminalCamera() {
         const videoEl = videoRef.current
         if (videoEl) {
           videoEl.srcObject = stream
-          const timeout = setTimeout(() => {
-            videoEl.play()
-          }, 3000)
-          await new Promise((resolve) => {
-            videoEl.onloadedmetadata = () => {
-              clearTimeout(timeout)
-              videoEl.play()
-              resolve()
-            }
-            videoEl.onerror = () => { clearTimeout(timeout); resolve() }
-          })
+          videoEl.play().catch(() => {})
         }
         setStep('preview')
         startAutoCapture()
