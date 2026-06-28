@@ -115,8 +115,10 @@ export default function TerminalCamera() {
         })
         if (!mountedRef.current) { stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
+        const videoEl = videoRef.current
+        if (videoEl) {
+          videoEl.srcObject = stream
+          await videoEl.play()
         }
         setStep('preview')
         startAutoCapture()
