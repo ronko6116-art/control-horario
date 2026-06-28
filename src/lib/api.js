@@ -283,36 +283,34 @@ export function generateDailyReportPDF(records, dateLabel) {
   doc.text('Empresa: [Nombre de la Empresa]', 14, 37)
   doc.text('CIF: [CIF de la Empresa]', 14, 43)
 
-  // Group by employee, then by day
+  // Group by employee, then by day, then by type (array for multiple events)
   const empMap = {}
   for (const r of records) {
     const name = r.perfiles?.nombre_completo || 'Desconocido'
     const dni = r.perfiles?.dni_nie || ''
     if (!empMap[name]) empMap[name] = { dni, nombre: name, dias: {} }
     const dia = new Date(r.creado_en).toLocaleDateString('es-ES')
-    if (!empMap[name].dias[dia]) empMap[name].dias[dia] = {}
-    empMap[name].dias[dia][r.tipo] = new Date(r.creado_en).toLocaleTimeString('es-ES', {
-      hour: '2-digit', minute: '2-digit',
+    if (!empMap[name].dias[dia]) empMap[name].dias[dia] = { eventos: [] }
+    empMap[name].dias[dia].eventos.push({
+      hora: new Date(r.creado_en).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+      tipo: r.tipo,
     })
   }
 
   const body = []
-  for (const emp of Object.values(empMap)) {
-    const entries = Object.entries(emp.dias)
-    entries.forEach(([fecha, tipos], idx) => {
-      body.push([
-        idx === 0 ? emp.nombre : '',
-        idx === 0 ? emp.dni : '',
-        fecha,
-        tipos.entrada || '-',
-        tipos.descanso || '-',
-        tipos.salida || '-',
-      ])
-    })
+  const sortedRecords = [...records].sort(
+    (a, b) => new Date(a.creado_en) - new Date(b.creado_en)
+  )
+  for (const r of sortedRecords) {
+    const name = r.perfiles?.nombre_completo || 'Desconocido'
+    const dni = r.perfiles?.dni_nie || ''
+    const fecha = new Date(r.creado_en).toLocaleDateString('es-ES')
+    const hora = new Date(r.creado_en).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+    body.push([name, dni, fecha, hora, r.tipo])
   }
 
   doc.autoTable({
-    head: [['Empleado', 'DNI/NIE', 'Fecha', 'Entrada', 'Descanso', 'Salida']],
+    head: [['Empleado', 'DNI/NIE', 'Fecha', 'Hora', 'Tipo']],
     body,
     startY: 50,
     styles: { fontSize: 9 },
