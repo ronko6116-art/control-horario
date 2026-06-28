@@ -22,6 +22,7 @@ export default function TerminalCamera() {
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
   const mountedRef = useRef(true)
+  const retryCountRef = useRef(0)
 
   const [step, setStep] = useState('starting')
   const [tipo, setTipo] = useState('entrada')
@@ -38,10 +39,19 @@ export default function TerminalCamera() {
     }
   }, [])
 
-  const capture = useCallback(() => {
+  const doCapture = useCallback(() => {
     const video = videoRef.current
     const canvas = canvasRef.current
-    if (!video || !canvas) return
+    if (!video || !canvas || !mountedRef.current) return
+
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      if (retryCountRef.current < 10) {
+        retryCountRef.current++
+        setTimeout(() => doCapture(), 200)
+      }
+      return
+    }
+
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     canvas.getContext('2d').drawImage(video, 0, 0)
@@ -56,6 +66,7 @@ export default function TerminalCamera() {
   }, [stopCamera])
 
   const startAutoCapture = useCallback(() => {
+    retryCountRef.current = 0
     let count = 3
     setCountdown(count)
     const interval = setInterval(() => {
@@ -64,10 +75,10 @@ export default function TerminalCamera() {
       setCountdown(count)
       if (count <= 0) {
         clearInterval(interval)
-        capture()
+        doCapture()
       }
     }, 1000)
-  }, [capture])
+  }, [doCapture])
 
   useEffect(() => {
     mountedRef.current = true
