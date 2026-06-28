@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  ClipboardList, Search, FileText, Trash2, Pencil, X, Check, Loader,
+  ClipboardList, FileText, Trash2, Pencil, X, Check, Loader,
   ChevronDown, ChevronUp, Camera,
 } from 'lucide-react'
 import {
@@ -9,10 +9,15 @@ import {
 } from '../lib/api'
 
 export default function AdminRecords() {
+  const today = new Date().toISOString().split('T')[0]
+  const sevenDaysAgo = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
+
   const [records, setRecords] = useState([])
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().split('T')[0])
+  const [exporting, setExporting] = useState(false)
+  const [filterDateDesde, setFilterDateDesde] = useState(sevenDaysAgo)
+  const [filterDateHasta, setFilterDateHasta] = useState(today)
   const [filterEmployee, setFilterEmployee] = useState('')
   const [expandedPhoto, setExpandedPhoto] = useState(null)
   const [editModal, setEditModal] = useState(null)
@@ -22,12 +27,13 @@ export default function AdminRecords() {
 
   useEffect(() => {
     let cancelled = false
-    async function load(date, empId) {
+    async function load(empId, desde, hasta) {
       setLoading(true)
       try {
         const data = await getRecords({
-          fecha: date || undefined,
           empleadoId: empId || undefined,
+          fechaDesde: desde || undefined,
+          fechaHasta: hasta || undefined,
         })
         if (!cancelled) setRecords(data)
       } catch (err) {
@@ -36,9 +42,9 @@ export default function AdminRecords() {
         if (!cancelled) setLoading(false)
       }
     }
-    load(filterDate, filterEmployee)
+    load(filterEmployee, filterDateDesde, filterDateHasta)
     return () => { cancelled = true }
-  }, [filterDate, filterEmployee])
+  }, [filterEmployee, filterDateDesde, filterDateHasta])
 
   useEffect(() => {
     getEmployees().then(data => setEmployees(data.filter(e => e.rol === 'empleado'))).catch(() => {})
@@ -55,12 +61,18 @@ export default function AdminRecords() {
 
   async function doFetch() {
     setLoading(true)
-    const data = await getRecords({
-      fecha: filterDate || undefined,
-      empleadoId: filterEmployee || undefined,
-    })
-    setRecords(data)
-    setLoading(false)
+    try {
+      const data = await getRecords({
+        fechaDesde: filterDateDesde || undefined,
+        fechaHasta: filterDateHasta || undefined,
+        empleadoId: filterEmployee || undefined,
+      })
+      setRecords(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function handleEditSave(e) {
@@ -93,9 +105,20 @@ export default function AdminRecords() {
   }
 
   async function handleExportPDF() {
-    const dateLabel = filterDate || new Date().toISOString().split('T')[0]
-    const data = await getDailyReport(dateLabel)
-    generateDailyReportPDF(data, dateLabel)
+    setExporting(true)
+    setError('')
+    try {
+      const from = filterDateDesde || today
+      const to = filterDateHasta || today
+      const label = from === to ? from : `${from} — ${to}`
+      const data = await getDailyReport(from, to)
+      generateDailyReportPDF(data, label)
+    } catch (err) {
+      setError('Error al generar el PDF: ' + err.message)
+      console.error(err)
+    } finally {
+      setExporting(false)
+    }
   }
 
   const tipoClass = (tipo) => {
@@ -119,21 +142,31 @@ export default function AdminRecords() {
         </div>
         <button
           onClick={handleExportPDF}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+          disabled={exporting}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50"
         >
-          <FileText className="w-4 h-4" />
-          Exportar PDF
+          {exporting ? <Loader className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+          {exporting ? 'Generando...' : 'Exportar PDF'}
         </button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Desde</span>
           <input
             type="date"
-            value={filterDate}
-            onChange={e => setFilterDate(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            value={filterDateDesde}
+            onChange={e => setFilterDateDesde(e.target.value)}
+            className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">Hasta</span>
+          <input
+            type="date"
+            value={filterDateHasta}
+            onChange={e => setFilterDateHasta(e.target.value)}
+            className="px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
         <select
@@ -147,6 +180,12 @@ export default function AdminRecords() {
           ))}
         </select>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+          {error}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
@@ -171,7 +210,7 @@ export default function AdminRecords() {
                 {records.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-5 py-12 text-center text-gray-400">
-                      No hay fichajes para esta fecha
+                      No hay fichajes en el rango seleccionado
                     </td>
                   </tr>
                 )}

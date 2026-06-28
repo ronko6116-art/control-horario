@@ -159,18 +159,22 @@ export async function deleteEmployee(id) {
    ADMIN: Fichajes
    ============================================ */
 
-export async function getRecords({ fecha, empleadoId } = {}) {
+export async function getRecords({ fechaDesde, fechaHasta, empleadoId } = {}) {
   let query = supabase
     .from('fichajes')
     .select('*, perfiles(nombre_completo, dni_nie)')
     .order('creado_en', { ascending: false })
 
-  if (fecha) {
-    const start = new Date(fecha)
+  if (fechaDesde) {
+    const start = new Date(fechaDesde)
     start.setHours(0, 0, 0, 0)
-    const end = new Date(fecha)
+    query = query.gte('creado_en', start.toISOString())
+  }
+
+  if (fechaHasta) {
+    const end = new Date(fechaHasta)
     end.setHours(23, 59, 59, 999)
-    query = query.gte('creado_en', start.toISOString()).lte('creado_en', end.toISOString())
+    query = query.lte('creado_en', end.toISOString())
   }
 
   if (empleadoId) {
@@ -182,10 +186,10 @@ export async function getRecords({ fecha, empleadoId } = {}) {
   return data
 }
 
-export async function getDailyReport(date) {
-  const start = new Date(date)
+export async function getDailyReport(dateFrom, dateTo) {
+  const start = new Date(dateFrom)
   start.setHours(0, 0, 0, 0)
-  const end = new Date(date)
+  const end = new Date(dateTo || dateFrom)
   end.setHours(23, 59, 59, 999)
 
   const { data, error } = await supabase
@@ -265,7 +269,7 @@ export async function getDashboardStats() {
    ADMIN: Exportación PDF (Registro de Jornada)
    ============================================ */
 
-export function generateDailyReportPDF(records, dateStr) {
+export function generateDailyReportPDF(records, dateLabel) {
   const doc = new jsPDF()
   const pageWidth = doc.internal.pageSize.getWidth()
 
@@ -273,7 +277,7 @@ export function generateDailyReportPDF(records, dateStr) {
   doc.text('Registro de Jornada', pageWidth / 2, 15, { align: 'center' })
 
   doc.setFontSize(10)
-  doc.text(`Fecha: ${dateStr}`, 14, 25)
+  doc.text(`Período: ${dateLabel}`, 14, 25)
   doc.text(`Generado el: ${new Date().toLocaleString('es-ES')}`, 14, 31)
   doc.text('Empresa: [Nombre de la Empresa]', 14, 37)
   doc.text('CIF: [CIF de la Empresa]', 14, 43)
@@ -283,29 +287,34 @@ export function generateDailyReportPDF(records, dateStr) {
     const name = r.perfiles?.nombre_completo || 'Desconocido'
     const dni = r.perfiles?.dni_nie || ''
     if (!empleadosMap[name]) {
-      empleadosMap[name] = { dni, nombre: name, eventos: [] }
+      empleadosMap[name] = { dni, nombre: name, eventos: [], fechas: [] }
     }
     empleadosMap[name].eventos.push({
       hora: new Date(r.creado_en).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
       tipo: r.tipo,
     })
+    const fechaStr = new Date(r.creado_en).toLocaleDateString('es-ES')
+    if (!empleadosMap[name].fechas.includes(fechaStr)) {
+      empleadosMap[name].fechas.push(fechaStr)
+    }
   }
 
   const body = Object.values(empleadosMap).map(emp => {
-    const entrada = emp.eventos.find(e => e.tipo === 'entrada')
-    const descanso = emp.eventos.find(e => e.tipo === 'descanso')
-    const salida = emp.eventos.find(e => e.tipo === 'salida')
+    const entradas = emp.eventos.filter(e => e.tipo === 'entrada').length
+    const salidas = emp.eventos.filter(e => e.tipo === 'salida').length
+    const descansos = emp.eventos.filter(e => e.tipo === 'descanso').length
     return [
       emp.nombre,
       emp.dni,
-      entrada?.hora || '-',
-      descanso?.hora || '-',
-      salida?.hora || '-',
+      emp.fechas.length.toString(),
+      entradas.toString(),
+      descansos.toString(),
+      salidas.toString(),
     ]
   })
 
   doc.autoTable({
-    head: [['Empleado', 'DNI/NIE', 'Entrada', 'Descanso', 'Salida']],
+    head: [['Empleado', 'DNI/NIE', 'Días', 'Entradas', 'Descansos', 'Salidas']],
     body,
     startY: 50,
     styles: { fontSize: 9 },
@@ -320,5 +329,5 @@ export function generateDailyReportPDF(records, dateStr) {
     finalY + 10
   )
 
-  doc.save(`registro-jornada-${dateStr}.pdf`)
+  doc.save(`registro-jornada-${dateLabel.replace(/[/\s]/g, '-')}.pdf`)
 }
