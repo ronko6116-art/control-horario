@@ -174,92 +174,90 @@ export default function TerminalCamera() {
   const now = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-900 text-white">
+    <div className="flex flex-col h-dvh bg-gray-900 text-white overflow-hidden">
       {step === 'preview' && (
-        <>
-          <div className="flex-1 relative flex items-center justify-center bg-black">
+        <div className="flex flex-col h-dvh">
+          <div className="flex-1 relative flex items-center justify-center bg-black min-h-0">
             <video
               ref={videoRef}
               playsInline
               muted
-              className="w-full h-full object-cover max-h-[70vh]"
+              className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-64 h-64 border-2 border-white/30 rounded-full" />
+              <div className="w-56 h-56 md:w-72 md:h-72 border-[3px] border-white/30 rounded-full" />
             </div>
             {countdown > 0 && (
-              <div className="absolute bottom-20 left-1/2 -translate-x-1/2">
-                <span className="text-6xl font-bold text-blue-400 animate-pulse">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-7xl md:text-8xl font-bold text-blue-400 drop-shadow-lg animate-pulse">
                   {countdown}
                 </span>
               </div>
             )}
           </div>
 
-          <div className="bg-gray-800 px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <User className="w-5 h-5 text-gray-400" />
-              <span className="text-lg">{employee.nombre_completo}</span>
+          <div className="bg-gray-800/95 backdrop-blur px-5 py-3 md:px-6 md:py-4 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <User className="w-4 h-4 md:w-5 md:h-5 text-gray-400 shrink-0" />
+              <span className="text-sm md:text-base truncate">{employee.nombre_completo}</span>
             </div>
-            <div className={`px-4 py-1.5 rounded-full text-sm font-bold ${tipoInfo.bg} ${tipoInfo.color}`}>
+            <div className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-xs md:text-sm font-bold shrink-0 ${tipoInfo.bg} ${tipoInfo.color}`}>
               {tipoInfo.label}
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {step === 'captured' && (
-        <>
-          <div className="flex-1 flex items-center justify-center bg-black p-4">
+        <div className="flex flex-col h-dvh">
+          <div className="flex-1 flex items-center justify-center bg-black p-4 min-h-0">
             {capturedUrl && (
               <img
                 src={capturedUrl}
                 alt="Captura"
-                className="max-h-[60vh] rounded-lg border-2 border-gray-700"
+                className="max-h-full max-w-full rounded-lg"
               />
             )}
           </div>
 
-          <div className="bg-gray-800 px-6 py-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <User className="w-5 h-5 text-gray-400" />
-                <span className="text-lg">{employee.nombre_completo}</span>
+          <div className="bg-gray-800/95 backdrop-blur px-5 py-3 md:px-6 md:py-4 shrink-0">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <User className="w-4 h-4 md:w-5 md:h-5 text-gray-400 shrink-0" />
+                <span className="text-sm md:text-base truncate">{employee.nombre_completo}</span>
               </div>
-              <div className={`px-4 py-1.5 rounded-full text-sm font-bold ${tipoInfo.bg} ${tipoInfo.color}`}>
+              <div className={`px-3 py-1 md:px-4 md:py-1.5 rounded-full text-xs md:text-sm font-bold shrink-0 ${tipoInfo.bg} ${tipoInfo.color}`}>
                 {tipoInfo.label}
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-gray-400">
-                <Clock className="w-4 h-4" />
-                <span>{now}</span>
-              </div>
+            <div className="flex items-center gap-2 text-gray-400 text-xs md:text-sm mb-3">
+              <Clock className="w-3.5 h-3.5" />
+              <span>{now}</span>
             </div>
 
             {error && (
-              <p className="text-red-400 text-sm">{error}</p>
+              <p className="text-red-400 text-xs md:text-sm mb-2">{error}</p>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={resetAndGoHome}
-                className="flex-1 py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 md:py-3 bg-gray-700 hover:bg-gray-600 rounded-xl font-semibold text-xs md:text-sm transition-colors flex items-center justify-center gap-1.5"
               >
-                <RefreshCw className="w-5 h-5" />
+                <RefreshCw className="w-4 h-4" />
                 Repetir
               </button>
               <button
                 onClick={confirmAndSave}
-                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 md:py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-semibold text-xs md:text-sm transition-colors flex items-center justify-center gap-1.5"
               >
-                <CheckCircle className="w-5 h-5" />
+                <CheckCircle className="w-4 h-4" />
                 Confirmar
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {step === 'uploading' && (
@@ -270,28 +268,28 @@ export default function TerminalCamera() {
       )}
 
       {step === 'success' && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
-          <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center">
-            <CheckCircle className="w-14 h-14 text-green-400" />
+        <div className="flex flex-col h-dvh items-center justify-center gap-5 md:gap-6 px-8">
+          <div className="w-20 h-20 md:w-24 md:h-24 bg-green-500/20 rounded-full flex items-center justify-center">
+            <CheckCircle className="w-12 h-12 md:w-14 md:h-14 text-green-400" />
           </div>
-          <h2 className="text-3xl font-bold text-green-400">¡Fichaje Registrado!</h2>
-          <div className={`px-6 py-2 rounded-full text-lg font-bold ${tipoInfo.bg} ${tipoInfo.color}`}>
+          <h2 className="text-2xl md:text-3xl font-bold text-green-400 text-center">¡Fichaje Registrado!</h2>
+          <div className={`px-5 py-1.5 md:px-6 md:py-2 rounded-full text-base md:text-lg font-bold ${tipoInfo.bg} ${tipoInfo.color}`}>
             {tipoInfo.label}
           </div>
-          <p className="text-xl text-gray-300">{employee.nombre_completo}</p>
-          <p className="text-lg text-gray-400">
+          <p className="text-lg md:text-xl text-gray-300 text-center">{employee.nombre_completo}</p>
+          <p className="text-sm md:text-lg text-gray-400">
             {successData && new Date(successData.creado_en).toLocaleString('es-ES')}
           </p>
           {capturedUrl && (
             <img
               src={capturedUrl}
               alt="Foto"
-              className="w-32 h-32 object-cover rounded-full border-4 border-green-500/50"
+              className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-full border-4 border-green-500/50"
             />
           )}
           <button
             onClick={resetAndGoHome}
-            className="mt-4 px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold text-lg transition-colors"
+            className="px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold text-base md:text-lg transition-colors"
           >
             Nuevo Fichaje
           </button>
@@ -305,9 +303,9 @@ export default function TerminalCamera() {
       )}
 
       {step === 'error' && (
-        <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6">
-          <XCircle className="w-16 h-16 text-red-400" />
-          <p className="text-xl text-red-400 text-center">{error}</p>
+        <div className="flex flex-col h-dvh items-center justify-center gap-4 px-8">
+          <XCircle className="w-14 h-14 md:w-16 md:h-16 text-red-400" />
+          <p className="text-lg md:text-xl text-red-400 text-center">{error}</p>
           <button
             onClick={resetAndGoHome}
             className="px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl font-bold transition-colors"
