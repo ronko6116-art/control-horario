@@ -22,7 +22,8 @@ export default function AdminRecords() {
 
   useEffect(() => {
     let cancelled = false
-    async function fetchRecords(date, empId) {
+    async function load(date, empId) {
+      setLoading(true)
       try {
         const data = await getRecords({
           fecha: date || undefined,
@@ -31,9 +32,11 @@ export default function AdminRecords() {
         if (!cancelled) setRecords(data)
       } catch (err) {
         if (!cancelled) console.error(err)
+      } finally {
+        if (!cancelled) setLoading(false)
       }
     }
-    fetchRecords(filterDate, filterEmployee)
+    load(filterDate, filterEmployee)
     return () => { cancelled = true }
   }, [filterDate, filterEmployee])
 
